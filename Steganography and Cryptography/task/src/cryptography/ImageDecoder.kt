@@ -5,15 +5,21 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-class ImageDecoder(private val image: BufferedImage) {
+class ImageDecoder(private val image: BufferedImage, private val key: String) {
 
     lateinit var messageBytes: ByteArray;
 
     private fun decode() {
 
-        val bits = mutableListOf<Int>()
+        var bits = mutableListOf<Int>()
 
-        for (i in 0 until image.height) {
+        val endIndicatorBits = endIndicator.toByteArray(Charsets.UTF_8).flatMap { byte ->
+            (7 downTo 0).map { i -> (byte.toInt() shr i) and 1 }
+        }
+
+        var indicatorBuffer = mutableListOf<Int>()
+
+        outer@ for (i in 0 until image.height) {
             for (j in 0 until image.width) {
                 val color = Color(image.getRGB(j, i))
                 val blue = color.blue
@@ -21,6 +27,16 @@ class ImageDecoder(private val image: BufferedImage) {
                 val lsbOfBlue = blue and 1
 
                 bits.add(lsbOfBlue)
+                indicatorBuffer.add(lsbOfBlue)
+
+                if (indicatorBuffer.size > endIndicatorBits.size) {
+                    indicatorBuffer = indicatorBuffer.takeLast(endIndicatorBits.size).toMutableList()
+                }
+
+                if (indicatorBuffer == endIndicatorBits) {
+                    bits = bits.take(bits.size - endIndicatorBits.size).toMutableList()
+                    break@outer
+                }
 
                 val rgb = (color.red shl 16) or (color.green shl 8) or blue
                 image.setRGB(j, i, rgb)
@@ -38,9 +54,6 @@ class ImageDecoder(private val image: BufferedImage) {
             for (bitIndex in 0..7) {
                 if (i + bitIndex < bits.size) {
                     byte = byte shl 1 or bits[i + bitIndex]
-                } else {
-                    // Om det är färre än 8 bits kvar, lägger till nollor för att fylla ut.
-                    byte = byte shl 1
                 }
             }
             packed.add(byte.toByte())
@@ -59,8 +72,8 @@ class ImageDecoder(private val image: BufferedImage) {
 
     fun decodeToString(): String {
         decode()
-        val messageWithoutEndIndicator = messageBytes.dropLast(3).toByteArray()
-        return messageWithoutEndIndicator.toString(Charsets.UTF_8)
+        val message = xorWithKey(messageBytes, key.toByteArray())
+        return message.toString(Charsets.UTF_8)
     }
 
 

@@ -3,13 +3,6 @@ package cryptography
 import java.io.File
 import javax.imageio.ImageIO
 
-const val MAIN_MENU = "Task (hide, show, exit):";
-const val INPUT_IMAGE = "Input image file:";
-const val OUTPUT_IMAGE = "Output image file:";
-const val MESSAGE_TO_HIDE = "Message to hide:";
-const val MESSAGE = "Message:";
-
-
 
 class TextInterface {
 
@@ -28,9 +21,7 @@ class TextInterface {
                 "exit" -> println("Bye!")
                 else -> println("Wrong task: $input")
             }
-
         }
-
     }
 
     private fun getInput(prompt: String): String {
@@ -43,8 +34,8 @@ class TextInterface {
 
         try {
             val bufferedImage = ImageIO.read(File(inputFileName))
-            val imageDecoder = ImageDecoder(bufferedImage)
-            println("Input Image: $inputFileName")
+            val key = getInput(PASSWORD)
+            val imageDecoder = ImageDecoder(bufferedImage, key)
             val decodedMessage = imageDecoder.decodeToString()
             println(MESSAGE)
             println(decodedMessage)
@@ -58,10 +49,11 @@ class TextInterface {
         val inputFileName: String = getInput(INPUT_IMAGE)
         val outputFileName: String = getInput(OUTPUT_IMAGE)
         val message: String = getInput(MESSAGE_TO_HIDE)
+        val key = getInput(PASSWORD)
 
         try {
             val bufferedImage = ImageIO.read(File(inputFileName))
-            val imageEncoder = ImageEncoder(outputFileName, bufferedImage, message)
+            val imageEncoder = ImageEncoder(outputFileName, bufferedImage, message, key)
             imageEncoder.encode()
             imageEncoder.save()
             println("Message saved in $outputFileName image.")
